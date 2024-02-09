@@ -21,16 +21,16 @@ from NanoLambdaNSP32 import *
 
 
 class SpectroData:
-    def __init__(self, port, max_capture_history = 100):
+    def __init__(self, serial_device: serial.Serial, max_capture_history = 100):
         assert max_capture_history > 0
         self._max_capture_history: int = max_capture_history
         self._capture_history: list = [[] for _ in range(self._max_capture_history)]
         self._capture_index_pointer: int = 0
         self._captures_taken: int = 0
-        self._capture_running = True
+        self._capture_running = False
 
         # sensor
-        self._sensor = serial.Serial(port, baudrate = 115200, bytesize = serial.EIGHTBITS, parity = serial.PARITY_NONE, stopbits = serial.STOPBITS_ONE)
+        self._sensor = serial_device
         self._nsp32 = NSP32(self._sensor_data_send, self._sensor_packet_recieved)
 
         # recieving port thread
@@ -44,27 +44,37 @@ class SpectroData:
         self._capture_time_history_index: int = 0
         self._capture_time_average: int = 0
         self._capture_timer = 0
-
-        self._nsp32.GetSensorId(0)
-        self._nsp32.GetWavelength(0)
     
+
+    
+
     @property
-    def captures(self):
+    def captures(self) -> list:
         return self._capture_history
     @property
-    def max_captures(self):
+    def max_captures(self) -> int:
         return self._max_capture_history
     @property
-    def capture_index(self):
+    def capture_index(self) -> int:
         return self._capture_index_pointer
     @property
-    def capture_time_ms(self):
+    def capture_time_ms(self) -> float:
         sps = 0
         for i in self._capture_time_history:
             sps = sps + i
         return round((sps / self._capture_time_history_max) * 1000)
-    
-    def channel_graph(self, index: int):
+    @property
+    def capture_running(self) -> bool:
+        return self._capture_running
+    @capture_running.setter
+    def capture_running(self, run: bool) -> None:
+        if(not self.capture_running and run):
+            self._capture_running = True
+            self.test_capture()
+        else:
+            self._capture_running = False
+
+    def channel_graph(self, index: int) -> list:
         channel = list()
         for i in self._capture_history:
             channel.append(i[index])
@@ -92,6 +102,8 @@ class SpectroData:
             self._captures_taken += 1
             self._capture_time_history[self._capture_time_history_index] = time.time() - self._capture_timer
             self._capture_time_history_index = (self._capture_time_history_index + 1) % self._capture_time_history_max
+
+            # if captures are still running, call the next capture
             if(self._capture_running):
                 self.test_capture()
 
@@ -102,8 +114,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow, SpectroData):
         self.setupUi(self)
         self.setWindowTitle(f"SpectroPPG")
 
-        self._spec_data = SpectroData('/dev/ttyUSB0')
-        self._spec_data.test_capture()
+        self._spec_data: SpectroData = None
+        self._running: bool = False
 
         # graph properties
         self.graph.disableAutoRange()
@@ -115,18 +127,23 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow, SpectroData):
         # graph timer
         self.graph_timer = QtCore.QTimer()
         self.graph_timer.timeout.connect(self.update_graph)
-        self.graph_frame_rate = 5
+        self.graph_frame_rate = 10
         self.graph_timer_ms = int(1 / (self.graph_frame_rate / 1000))
-        self.graph_timer.start(self.graph_timer_ms)
 
         # channel graph timer
         self.channel_graph_frame_rate = 1
+        self.channel_timer_ms = int(1 / (self.channel_graph_frame_rate / 1000))
         self.channel_timer = QtCore.QTimer()
         self.channel_timer.timeout.connect(self.channel_graph_update)
-        self.channel_timer.start(int(1 / (self.channel_graph_frame_rate / 1000)))
 
-        # channel ui handler
+
+        # ui handlers
         self.channel_slider.valueChanged.connect(self.update_channel_ui)
+        self.button_refresh.clicked.connect(self.ser_com_refresh)
+        self.button_connect.clicked.connect(self.serial_connect)
+        self.button_startstop.clicked.connect(self.startstop)
+
+        self.ser_com_refresh()
 
 
     def update_graph(self):
@@ -139,19 +156,62 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow, SpectroData):
         self.graph.addItem(line)
 
     def channel_graph_update(self):
-        try:
+        if(self._spec_data.capture_running):
             self.label_3.setText(f"Average Capture Time (ms): {self._spec_data.capture_time_ms}")
-            self.label_capture_ps.setText(f"Captures per second: {1000 / self._spec_data.capture_time_ms:.2f}")
-            self.graph_2.clear()
+            try:
+                self.label_capture_ps.setText(f"Captures per second: {1000 / self._spec_data.capture_time_ms:.2f}")
+            except ZeroDivisionError:
+                pass
+        self.graph_2.clear()
+        try:
             channel = self._spec_data.channel_graph(self.channel_slider.value())
             self.graph_2.plot(numpy.arange(len(channel)), channel, pen = self.green_pen, skipFiniteCheck = True)
             self.graph_2.enableAutoRange()
             self.graph_2.disableAutoRange()
-        except IndexError:
+        except IndexError:      # the internal data is still building up, so we can safely pass this
             pass
+
+    def serial_connect(self):
+        if(self._spec_data is None):
+            port = self.port_dropdown.itemData(self.port_dropdown.currentIndex())
+            com_port = serial.Serial(port, baudrate = 115200, bytesize = serial.EIGHTBITS, parity = serial.PARITY_NONE, stopbits = serial.STOPBITS_ONE)
+            self._spec_data = SpectroData(com_port)
+            self.button_connect.setText("Disconnect")
+            self.button_startstop.setEnabled(True)
+            self.channel_timer.start(self.graph_timer_ms)
+            self.graph_timer.start(self.graph_timer_ms)
+        else:
+            self.channel_timer.stop()
+            self.graph_timer.stop()
+            del self._spec_data
+            self._spec_data = None
+            self.button_startstop.setEnabled(False)
+            self.button_connect.setText("Connect")
+    
+    def startstop(self):
+        if(not self._spec_data.capture_running):
+            self._spec_data.capture_running = True
+            self.button_startstop.setText("Stop")
+            self.button_connect.setEnabled(False)
+        else:
+            self._spec_data.capture_running = False
+            self.button_startstop.setText("Start")
+            self.button_connect.setEnabled(True)
 
     def update_channel_ui(self):
         self.channel_lcd.display(self.channel_slider.value())
+
+    # refresh available devices, store in dropdown menu storage
+    def ser_com_refresh(self):
+        """
+        Refreshes the list of available serial devices.\n
+        Results are stored in the dropdown menu.\n
+        Uses addItem to store the device string."""
+        self.port_dropdown.clear()
+        available_ports = serial.tools.list_ports.comports()
+        for device in available_ports:
+            d_name = device.device + ": " + device.description
+            self.port_dropdown.addItem(d_name, device.device)
 
 
 def main():
