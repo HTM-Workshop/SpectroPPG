@@ -1,11 +1,15 @@
+import csv
 import sys
 import time
+import xlwt
 import numpy
 import serial
 import serial.tools.list_ports
 import threading
 import pyqtgraph as pg
+from scipy.signal import savgol_filter
 from PyQt5 import QtWidgets, QtCore, QtWidgets, QtGui
+
 
 # manual includes to fix occasional compile problem
 try:
@@ -32,6 +36,9 @@ class SpectroData:
         # sensor
         self._sensor = serial_device
         self._nsp32 = NSP32(self._sensor_data_send, self._sensor_packet_recieved)
+        self._integration_passes = 20
+        self._frame_average = 1
+        self._auto_ae = False
 
         # recieving port thread
         self._thread = threading.Thread(target = self._sensor_data_recieve)
@@ -46,8 +53,26 @@ class SpectroData:
         self._capture_timer = 0
     
 
-    
-
+    @property
+    def integration_passes(self) -> int:
+        return self._integration_passes
+    @integration_passes.setter
+    def integration_passes(self, val: int) -> None:
+        assert val > 0 and val < 100
+        self._integration_passes = val
+    @property
+    def frame_average(self) -> int:
+        return self._frame_average
+    @frame_average.setter
+    def frame_average(self, val: int) -> None:
+        assert val > 0 and val < 100
+        self._frame_average = val
+    @property
+    def auto_ae(self) -> bool:
+        return self._auto_ae
+    @auto_ae.setter
+    def auto_ae(self, val: bool) -> None:
+        self._auto_ae = bool(val)
     @property
     def captures(self) -> list:
         return self._capture_history
@@ -86,7 +111,7 @@ class SpectroData:
 
     def test_capture(self):
         self._capture_timer = time.time()
-        self._nsp32.AcqSpectrum(0, 20, 1, False)    # Params: (sensor ID number, integration time, frame average, auto AE)
+        self._nsp32.AcqSpectrum(0, self._integration_passes, self._frame_average, self._auto_ae)    # Params: (sensor ID number, integration time, frame average, auto AE)
         
     def _sensor_data_send(self, data):
         self._sensor.write(data)
@@ -112,7 +137,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow, SpectroData):
     def __init__(self, *args, **kwargs):
         super(MainWindow, self).__init__(*args, **kwargs)
         self.setupUi(self)
-        self.setWindowTitle(f"SpectroPPG")
+        self.setWindowTitle(f"SpectroPPG - ALPHA")
 
         self._spec_data: SpectroData = None
         self._running: bool = False
@@ -142,6 +167,9 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow, SpectroData):
         self.button_refresh.clicked.connect(self.ser_com_refresh)
         self.button_connect.clicked.connect(self.serial_connect)
         self.button_startstop.clicked.connect(self.startstop)
+        self.button_update_sensor.clicked.connect(self.update_sensor)
+        self.button_export_channel.clicked.connect(self.export_channel_csv)
+        self.button_export_all.clicked.connect(self.export_all_csv)
 
         self.ser_com_refresh()
 
@@ -160,16 +188,19 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow, SpectroData):
             self.label_3.setText(f"Average Capture Time (ms): {self._spec_data.capture_time_ms}")
             try:
                 self.label_capture_ps.setText(f"Captures per second: {1000 / self._spec_data.capture_time_ms:.2f}")
-            except ZeroDivisionError:
-                pass
+            except ZeroDivisionError as e:
+                print(e)
         self.graph_2.clear()
-        try:
-            channel = self._spec_data.channel_graph(self.channel_slider.value())
-            self.graph_2.plot(numpy.arange(len(channel)), channel, pen = self.green_pen, skipFiniteCheck = True)
-            self.graph_2.enableAutoRange()
-            self.graph_2.disableAutoRange()
-        except IndexError:      # the internal data is still building up, so we can safely pass this
+        if(self.checkBox_savgol_enable.isChecked()):
             pass
+        else:
+            try:
+                channel = self._spec_data.channel_graph(self.channel_slider.value())
+                self.graph_2.plot(numpy.arange(len(channel)), channel, pen = self.green_pen, skipFiniteCheck = True)
+                self.graph_2.enableAutoRange()
+                self.graph_2.disableAutoRange()
+            except IndexError as e:      # the internal data is still building up, so we can safely pass this
+                print(e)
 
     def serial_connect(self):
         if(self._spec_data is None):
@@ -178,7 +209,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow, SpectroData):
             self._spec_data = SpectroData(com_port)
             self.button_connect.setText("Disconnect")
             self.button_startstop.setEnabled(True)
-            self.channel_timer.start(self.graph_timer_ms)
+            self.channel_timer.start(self.channel_timer_ms)
             self.graph_timer.start(self.graph_timer_ms)
         else:
             self.channel_timer.stop()
@@ -201,6 +232,36 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow, SpectroData):
     def update_channel_ui(self):
         self.channel_lcd.display(self.channel_slider.value())
 
+    def update_sensor(self):
+        self._spec_data.auto_ae = self.checkbox_auto_ae.isChecked()
+        self._spec_data.integration_passes = self.spinbox_int_passes.value()
+        self._spec_data.frame_average = self.spinbox_frame_avg.value()
+
+    def export_channel_csv(self):
+        default_filename = str(time.time()).split('.', maxsplit=1)[0] + '.csv'
+        channel = self.channel_slider.value()
+        try:
+            csv_file = open(default_filename, 'w', newline = '')
+            writer = csv.writer(csv_file)
+            writer.writerow(self._spec_data.channel_graph(channel))
+            csv_file.flush()
+            csv_file.close()
+            self.ui_display_error_message("Export", "Export Successful")
+        except Exception as e:
+            self.ui_display_error_message("Export Error", e)
+
+    def export_all_csv(self):
+        default_filename = str(time.time()).split('.', maxsplit=1)[0] + '.xls'
+        xls = xlwt.Workbook()
+        sheet = xls.add_sheet("Test Results")
+        data = self._spec_data.captures
+        for i in range(len(data)):
+            for j in range(len(data[i])):
+                sheet.write(i, j, data[i][j])
+        xls.save(default_filename)
+
+
+
     # refresh available devices, store in dropdown menu storage
     def ser_com_refresh(self):
         """
@@ -213,6 +274,12 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow, SpectroData):
             d_name = device.device + ": " + device.description
             self.port_dropdown.addItem(d_name, device.device)
 
+    def ui_display_error_message(self, title: str, msg: str) -> None:
+        """Display a generic error message to the user."""
+        error_message = QtWidgets.QMessageBox()
+        error_message.setWindowTitle(title)
+        error_message.setText(str(msg))
+        error_message.exec_()
 
 def main():
     app = QtWidgets.QApplication(sys.argv)

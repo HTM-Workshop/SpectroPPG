@@ -1,3 +1,6 @@
 __pycache__/
 dist/
 build/
+spectro_samples/
+*.csv
+*.xls
