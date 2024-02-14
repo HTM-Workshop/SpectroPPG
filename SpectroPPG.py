@@ -1,6 +1,7 @@
 import csv
 import sys
 import time
+import math
 import xlwt
 import numpy
 import serial
@@ -20,120 +21,11 @@ try:
 except:
     pass
 
+
 from test_ui import Ui_MainWindow
-from NanoLambdaNSP32 import *
+from SpectroData import SpectroData
 
-
-class SpectroData:
-    def __init__(self, serial_device: serial.Serial, max_capture_history = 100):
-        assert max_capture_history > 0
-        self._max_capture_history: int = max_capture_history
-        self._capture_history: list = [[] for _ in range(self._max_capture_history)]
-        self._capture_index_pointer: int = 0
-        self._captures_taken: int = 0
-        self._capture_running = False
-
-        # sensor
-        self._sensor = serial_device
-        self._nsp32 = NSP32(self._sensor_data_send, self._sensor_packet_recieved)
-        self._integration_passes = 20
-        self._frame_average = 1
-        self._auto_ae = False
-
-        # recieving port thread
-        self._thread = threading.Thread(target = self._sensor_data_recieve)
-        self._thread.daemon = True
-        self._thread.start()
-
-        # timing
-        self._capture_time_history_max: int = 10
-        self._capture_time_history: list = [0 for _ in range(self._capture_time_history_max)]
-        self._capture_time_history_index: int = 0
-        self._capture_time_average: int = 0
-        self._capture_timer = 0
-    
-
-    @property
-    def integration_passes(self) -> int:
-        return self._integration_passes
-    @integration_passes.setter
-    def integration_passes(self, val: int) -> None:
-        assert val > 0 and val < 100
-        self._integration_passes = val
-    @property
-    def frame_average(self) -> int:
-        return self._frame_average
-    @frame_average.setter
-    def frame_average(self, val: int) -> None:
-        assert val > 0 and val < 100
-        self._frame_average = val
-    @property
-    def auto_ae(self) -> bool:
-        return self._auto_ae
-    @auto_ae.setter
-    def auto_ae(self, val: bool) -> None:
-        self._auto_ae = bool(val)
-    @property
-    def captures(self) -> list:
-        return self._capture_history
-    @property
-    def max_captures(self) -> int:
-        return self._max_capture_history
-    @property
-    def capture_index(self) -> int:
-        return self._capture_index_pointer
-    @property
-    def capture_time_ms(self) -> float:
-        sps = 0
-        for i in self._capture_time_history:
-            sps = sps + i
-        return round((sps / self._capture_time_history_max) * 1000)
-    @property
-    def capture_running(self) -> bool:
-        return self._capture_running
-    @capture_running.setter
-    def capture_running(self, run: bool) -> None:
-        if(not self.capture_running and run):
-            self._capture_running = True
-            self.test_capture()
-        else:
-            self._capture_running = False
-
-    def channel_graph(self, index: int) -> list:
-        channel = list()
-        for i in self._capture_history:
-            channel.append(i[index])
-        return channel
-
-    def add_capture(self, data: tuple) -> None:
-        self._capture_history[self._capture_index_pointer] = data
-        self._capture_index_pointer = (self._capture_index_pointer + 1) % self._max_capture_history
-
-    def test_capture(self):
-        self._capture_timer = time.time()
-        self._nsp32.AcqSpectrum(0, self._integration_passes, self._frame_average, self._auto_ae)    # Params: (sensor ID number, integration time, frame average, auto AE)
-        
-    def _sensor_data_send(self, data):
-        self._sensor.write(data)
-
-    def _sensor_data_recieve(self):
-        while(self._sensor.isOpen()):
-            if(self._sensor.in_waiting):
-                self._nsp32.OnReturnBytesReceived(self._sensor.read(self._sensor.in_waiting))
-
-    def _sensor_packet_recieved(self, pkt: ReturnPacket) -> None:
-        if pkt.CmdCode == CmdCodeEnum.GetSpectrum:
-            self.add_capture(pkt.ExtractSpectrumInfo().Spectrum)
-            self._captures_taken += 1
-            self._capture_time_history[self._capture_time_history_index] = time.time() - self._capture_timer
-            self._capture_time_history_index = (self._capture_time_history_index + 1) % self._capture_time_history_max
-
-            # if captures are still running, call the next capture
-            if(self._capture_running):
-                self.test_capture()
-
-
-class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow, SpectroData):
+class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     def __init__(self, *args, **kwargs):
         super(MainWindow, self).__init__(*args, **kwargs)
         self.setupUi(self)
@@ -145,9 +37,11 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow, SpectroData):
         # graph properties
         self.graph.disableAutoRange()
         self.graph.showGrid(True, True, alpha = 0.5)
-        self.graph_padding_factor = 0.667
+        self.graph_2.disableAutoRange()
+        self.graph_2.showGrid(True, True, alpha = 0.5)
         self.green_pen = pg.mkPen('g', width = 2)
         self.red_pen = pg.mkPen('r', width = 2)
+        self.graph_padding_factor = 0.667
 
         # graph timer
         self.graph_timer = QtCore.QTimer()
@@ -161,7 +55,6 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow, SpectroData):
         self.channel_timer = QtCore.QTimer()
         self.channel_timer.timeout.connect(self.channel_graph_update)
 
-
         # ui handlers
         self.channel_slider.valueChanged.connect(self.update_channel_ui)
         self.button_refresh.clicked.connect(self.ser_com_refresh)
@@ -173,7 +66,6 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow, SpectroData):
 
         self.ser_com_refresh()
 
-
     def update_graph(self):
         self.graph.clear()
         capture = self._spec_data.captures[self._spec_data.capture_index - 1]
@@ -184,23 +76,31 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow, SpectroData):
         self.graph.addItem(line)
 
     def channel_graph_update(self):
-        if(self._spec_data.capture_running):
-            self.label_3.setText(f"Average Capture Time (ms): {self._spec_data.capture_time_ms}")
-            try:
-                self.label_capture_ps.setText(f"Captures per second: {1000 / self._spec_data.capture_time_ms:.2f}")
-            except ZeroDivisionError as e:
-                print(e)
         self.graph_2.clear()
+        channel = list()
         if(self.checkBox_savgol_enable.isChecked()):
             pass
         else:
             try:
                 channel = self._spec_data.channel_graph(self.channel_slider.value())
                 self.graph_2.plot(numpy.arange(len(channel)), channel, pen = self.green_pen, skipFiniteCheck = True)
-                self.graph_2.enableAutoRange()
-                self.graph_2.disableAutoRange()
+                max_h = max(channel)
+                min_h = min(channel)
+                padding_factor = self.slider_channel_zoom.value() / 100
+                pad = math.floor((max_h - min_h) * padding_factor)
+                self.graph_2.setRange(
+                    xRange = (0, self._spec_data.max_captures),
+                    yRange = (max_h + pad, min_h - pad)
+                )
             except IndexError as e:      # the internal data is still building up, so we can safely pass this
                 print(e)
+        if(self._spec_data.capture_running):
+            self.label_3.setText(f"Average Capture Time (ms): {self._spec_data.capture_time_ms}")
+            try:
+                self.label_capture_ps.setText(f"Captures per second: {1000 / self._spec_data.capture_time_ms:.2f}")
+            except ZeroDivisionError as e:
+                print(e)
+
 
     def serial_connect(self):
         if(self._spec_data is None):

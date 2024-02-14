@@ -3,4 +3,5 @@ PyQt5
 pyqtgraph
 pyserial
 scipy
-csv
+xlwt
+pyinstaller

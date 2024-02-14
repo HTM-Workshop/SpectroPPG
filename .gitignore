@@ -4,3 +4,4 @@ build/
 spectro_samples/
 *.csv
 *.xls
+*.spec
