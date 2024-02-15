@@ -30,7 +30,6 @@ class SpectroData:
         self._capture_time_history_index: int = 0
         self._capture_time_average: int = 0
         self._capture_timer = 0
-    
 
     @property
     def integration_passes(self) -> int:

@@ -84,14 +84,15 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             try:
                 channel = self._spec_data.channel_graph(self.channel_slider.value())
                 self.graph_2.plot(numpy.arange(len(channel)), channel, pen = self.green_pen, skipFiniteCheck = True)
-                max_h = max(channel)
-                min_h = min(channel)
-                padding_factor = self.slider_channel_zoom.value() / 100
-                pad = math.floor((max_h - min_h) * padding_factor)
-                self.graph_2.setRange(
-                    xRange = (0, self._spec_data.max_captures),
-                    yRange = (max_h + pad, min_h - pad)
-                )
+                if(self.checkbox_auto_scale.isChecked()):
+                    max_h = max(channel)
+                    min_h = min(channel)
+                    padding_factor = self.slider_channel_zoom.value() / 100
+                    pad = math.floor((max_h - min_h) * padding_factor)
+                    self.graph_2.setRange(
+                        xRange = (0, self._spec_data.max_captures),
+                        yRange = (max_h + pad, min_h - pad)
+                    )
             except IndexError as e:      # the internal data is still building up, so we can safely pass this
                 print(e)
         if(self._spec_data.capture_running):

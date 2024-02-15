@@ -6,14 +6,14 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>782</width>
-    <height>559</height>
+    <width>1016</width>
+    <height>675</height>
    </rect>
   </property>
   <property name="minimumSize">
    <size>
-    <width>782</width>
-    <height>559</height>
+    <width>1016</width>
+    <height>675</height>
    </size>
   </property>
   <property name="windowTitle">
@@ -244,25 +244,6 @@
            <item row="1" column="0">
             <layout class="QHBoxLayout" name="horizontalLayout">
              <item>
-              <widget class="QSlider" name="slider_channel_zoom">
-               <property name="maximum">
-                <number>299</number>
-               </property>
-               <property name="value">
-                <number>99</number>
-               </property>
-               <property name="orientation">
-                <enum>Qt::Vertical</enum>
-               </property>
-               <property name="invertedAppearance">
-                <bool>true</bool>
-               </property>
-               <property name="invertedControls">
-                <bool>false</bool>
-               </property>
-              </widget>
-             </item>
-             <item>
               <widget class="PlotWidget" name="graph_2" native="true">
                <property name="sizePolicy">
                 <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
@@ -311,6 +292,12 @@
          <layout class="QVBoxLayout" name="verticalLayout_3">
           <item>
            <widget class="QFrame" name="gridFrame_2">
+            <property name="maximumSize">
+             <size>
+              <width>132</width>
+              <height>204</height>
+             </size>
+            </property>
             <property name="frameShape">
              <enum>QFrame::Box</enum>
             </property>
@@ -331,21 +318,42 @@
                </property>
               </widget>
              </item>
-             <item row="7" column="0">
+             <item row="6" column="0">
               <widget class="QCheckBox" name="checkbox_auto_ae">
                <property name="text">
                 <string>Auto AE</string>
                </property>
               </widget>
              </item>
-             <item row="5" column="0">
+             <item row="4" column="0">
               <widget class="QLabel" name="label_15">
                <property name="text">
                 <string>Frame Average:</string>
                </property>
               </widget>
              </item>
-             <item row="4" column="0">
+             <item row="2" column="0">
+              <widget class="QLabel" name="label_14">
+               <property name="text">
+                <string>Integration Passes:</string>
+               </property>
+              </widget>
+             </item>
+             <item row="5" column="0">
+              <widget class="QSpinBox" name="spinbox_frame_avg">
+               <property name="minimum">
+                <number>1</number>
+               </property>
+              </widget>
+             </item>
+             <item row="7" column="0">
+              <widget class="QPushButton" name="button_update_sensor">
+               <property name="text">
+                <string>Update Sensor</string>
+               </property>
+              </widget>
+             </item>
+             <item row="3" column="0">
               <widget class="QSpinBox" name="spinbox_int_passes">
                <property name="minimum">
                 <number>1</number>
@@ -355,47 +363,19 @@
                </property>
               </widget>
              </item>
-             <item row="3" column="0">
-              <widget class="QLabel" name="label_14">
-               <property name="text">
-                <string>Integration Passes:</string>
-               </property>
-              </widget>
-             </item>
-             <item row="2" column="0">
-              <spacer name="verticalSpacer">
-               <property name="orientation">
-                <enum>Qt::Vertical</enum>
-               </property>
-               <property name="sizeHint" stdset="0">
-                <size>
-                 <width>20</width>
-                 <height>40</height>
-                </size>
-               </property>
-              </spacer>
-             </item>
-             <item row="6" column="0">
-              <widget class="QSpinBox" name="spinbox_frame_avg">
-               <property name="minimum">
-                <number>1</number>
-               </property>
-              </widget>
-             </item>
-             <item row="8" column="0">
-              <widget class="QPushButton" name="button_update_sensor">
-               <property name="text">
-                <string>Update Sensor</string>
-               </property>
-              </widget>
-             </item>
             </layout>
            </widget>
           </item>
           <item>
            <widget class="QFrame" name="verticalFrame">
             <property name="enabled">
-             <bool>true</bool>
+             <bool>false</bool>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>132</width>
+              <height>171</height>
+             </size>
             </property>
             <property name="frameShape">
              <enum>QFrame::Box</enum>
@@ -416,19 +396,6 @@
                 <set>Qt::AlignCenter</set>
                </property>
               </widget>
-             </item>
-             <item>
-              <spacer name="verticalSpacer_2">
-               <property name="orientation">
-                <enum>Qt::Vertical</enum>
-               </property>
-               <property name="sizeHint" stdset="0">
-                <size>
-                 <width>20</width>
-                 <height>40</height>
-                </size>
-               </property>
-              </spacer>
              </item>
              <item>
               <widget class="QCheckBox" name="checkBox_savgol_enable">
@@ -462,6 +429,12 @@
           </item>
           <item>
            <widget class="QFrame" name="verticalFrame">
+            <property name="maximumSize">
+             <size>
+              <width>132</width>
+              <height>114</height>
+             </size>
+            </property>
             <property name="frameShape">
              <enum>QFrame::Box</enum>
             </property>
@@ -483,19 +456,6 @@
               </widget>
              </item>
              <item>
-              <spacer name="verticalSpacer_3">
-               <property name="orientation">
-                <enum>Qt::Vertical</enum>
-               </property>
-               <property name="sizeHint" stdset="0">
-                <size>
-                 <width>20</width>
-                 <height>40</height>
-                </size>
-               </property>
-              </spacer>
-             </item>
-             <item>
               <widget class="QPushButton" name="button_export_channel">
                <property name="text">
                 <string>Channel CSV</string>
@@ -511,6 +471,92 @@
              </item>
             </layout>
            </widget>
+          </item>
+          <item>
+           <widget class="QFrame" name="verticalFrame">
+            <property name="maximumSize">
+             <size>
+              <width>132</width>
+              <height>114</height>
+             </size>
+            </property>
+            <property name="frameShape">
+             <enum>QFrame::Box</enum>
+            </property>
+            <layout class="QVBoxLayout" name="verticalLayout_5">
+             <item>
+              <widget class="QLabel" name="label_6">
+               <property name="font">
+                <font>
+                 <weight>75</weight>
+                 <bold>true</bold>
+                </font>
+               </property>
+               <property name="text">
+                <string>Channel Graph</string>
+               </property>
+               <property name="alignment">
+                <set>Qt::AlignCenter</set>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QLabel" name="label_7">
+               <property name="text">
+                <string>Zoom:</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QSlider" name="slider_channel_zoom">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+               <property name="maximum">
+                <number>299</number>
+               </property>
+               <property name="value">
+                <number>99</number>
+               </property>
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
+               </property>
+               <property name="invertedAppearance">
+                <bool>true</bool>
+               </property>
+               <property name="invertedControls">
+                <bool>false</bool>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QCheckBox" name="checkbox_auto_scale">
+               <property name="text">
+                <string>Auto Scale</string>
+               </property>
+               <property name="checked">
+                <bool>true</bool>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+          </item>
+          <item>
+           <spacer name="verticalSpacer">
+            <property name="orientation">
+             <enum>Qt::Vertical</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>20</width>
+              <height>40</height>
+             </size>
+            </property>
+           </spacer>
           </item>
          </layout>
         </widget>
