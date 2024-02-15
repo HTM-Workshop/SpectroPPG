@@ -24,7 +24,7 @@
     <bool>true</bool>
    </property>
    <layout class="QGridLayout" name="gridLayout_8">
-    <item row="0" column="0">
+    <item row="0" column="1">
      <widget class="QFrame" name="horizontalFrame">
       <layout class="QHBoxLayout" name="horizontalLayout_21">
        <item>
@@ -156,7 +156,7 @@
          <item row="3" column="0">
           <widget class="QFrame" name="frame">
            <property name="frameShape">
-            <enum>QFrame::Box</enum>
+            <enum>QFrame::NoFrame</enum>
            </property>
            <layout class="QHBoxLayout" name="horizontalLayout_2">
             <item>
@@ -559,6 +559,77 @@
            </spacer>
           </item>
          </layout>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+    <item row="0" column="0">
+     <widget class="QFrame" name="verticalFrame">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="maximumSize">
+       <size>
+        <width>150</width>
+        <height>16777215</height>
+       </size>
+      </property>
+      <property name="frameShape">
+       <enum>QFrame::Box</enum>
+      </property>
+      <layout class="QVBoxLayout" name="verticalLayout_2">
+       <item>
+        <widget class="QLabel" name="label_8">
+         <property name="text">
+          <string>Marked Channels</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QListWidget" name="list_mca">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <item>
+          <property name="text">
+           <string>60</string>
+          </property>
+         </item>
+        </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_6">
+         <item>
+          <widget class="QPushButton" name="button_mca_mark">
+           <property name="text">
+            <string>Mark</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="button_mca_clear">
+           <property name="text">
+            <string>Clear</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="checkbox_enable_mca">
+         <property name="text">
+          <string>Enable MCA</string>
+         </property>
         </widget>
        </item>
       </layout>

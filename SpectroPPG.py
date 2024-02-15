@@ -77,30 +77,35 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def channel_graph_update(self):
         self.graph_2.clear()
-        channel = list()
-        if(self.checkBox_savgol_enable.isChecked()):
+        if(self.checkbox_enable_mca):
             pass
         else:
-            try:
-                channel = self._spec_data.channel_graph(self.channel_slider.value())
-                self.graph_2.plot(numpy.arange(len(channel)), channel, pen = self.green_pen, skipFiniteCheck = True)
-                if(self.checkbox_auto_scale.isChecked()):
-                    max_h = max(channel)
-                    min_h = min(channel)
-                    padding_factor = self.slider_channel_zoom.value() / 100
-                    pad = math.floor((max_h - min_h) * padding_factor)
-                    self.graph_2.setRange(
-                        xRange = (0, self._spec_data.max_captures),
-                        yRange = (max_h + pad, min_h - pad)
-                    )
-            except IndexError as e:      # the internal data is still building up, so we can safely pass this
-                print(e)
+            if(self.checkBox_savgol_enable.isChecked()):
+                pass
+            else:
+                try:
+                    channel = self._spec_data.channel_graph(self.channel_slider.value())
+                    self.graph_2.plot(numpy.arange(len(channel)), channel, pen = self.green_pen, skipFiniteCheck = True)
+                except IndexError as e:      # the internal data is still building up, so we can safely pass this
+                    print(e)
+        
+        # update capture rate statistics and scale graph
         if(self._spec_data.capture_running):
             self.label_3.setText(f"Average Capture Time (ms): {self._spec_data.capture_time_ms}")
             try:
                 self.label_capture_ps.setText(f"Captures per second: {1000 / self._spec_data.capture_time_ms:.2f}")
             except ZeroDivisionError as e:
                 print(e)
+            if(self.checkbox_auto_scale.isChecked()):
+                channel = self._spec_data.channel_graph(self.channel_slider.value())
+                max_h = max(channel)
+                min_h = min(channel)
+                padding_factor = self.slider_channel_zoom.value() / 100
+                pad = math.floor((max_h - min_h) * padding_factor)
+                self.graph_2.setRange(
+                    xRange = (0, self._spec_data.max_captures),
+                    yRange = (max_h + pad, min_h - pad)
+                )
 
 
     def serial_connect(self):
