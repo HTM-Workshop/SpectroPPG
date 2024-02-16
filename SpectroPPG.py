@@ -41,6 +41,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.graph_2.showGrid(True, True, alpha = 0.5)
         self.green_pen = pg.mkPen('g', width = 2)
         self.red_pen = pg.mkPen('r', width = 2)
+        self.grey_pen = pg.mkPen({'color': "#DDD", 'width': 1})
         self.graph_padding_factor = 0.667
 
         # graph timer
@@ -63,6 +64,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.button_update_sensor.clicked.connect(self.update_sensor)
         self.button_export_channel.clicked.connect(self.export_channel_csv)
         self.button_export_all.clicked.connect(self.export_all_csv)
+        self.button_mca_mark.clicked.connect(self.mca_mark_channel)
+        self.button_mca_clear.clicked.connect(self.mca_clear_channel)
 
         self.ser_com_refresh()
 
@@ -72,13 +75,34 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.graph.plot(numpy.arange(len(capture)), capture, pen = self.green_pen, skipFiniteCheck = True)
         self.graph.enableAutoRange()
         self.graph.disableAutoRange()
-        line = pg.InfiniteLine(pos = self.channel_slider.value(), pen = self.red_pen, angle = 90, movable = False)
-        self.graph.addItem(line)
+        track_line = pg.InfiniteLine(pos = self.channel_slider.value(), pen = self.red_pen, angle = 90, movable = False)
+        self.graph.addItem(track_line)
+
+        if(self.checkbox_enable_mca.isChecked()):
+            marked_channels = [int(self.list_mca.item(x).text()) for x in range(self.list_mca.count())]
+            if(len(marked_channels)):
+                for i in marked_channels:
+                    mark_line = pg.InfiniteLine(pos = i, pen = self.grey_pen, angle = 90, movable = False)
+                    self.graph.addItem(mark_line)
 
     def channel_graph_update(self):
         self.graph_2.clear()
-        if(self.checkbox_enable_mca):
-            pass
+        channel = list()
+        if(self.checkbox_enable_mca.isChecked()):
+            try: 
+                marked_channels = [int(self.list_mca.item(x).text()) for x in range(self.list_mca.count())]
+                output_array = numpy.array([0 for i in range(self._spec_data.max_captures)])
+
+                # begin a per-element merge of the marked channels
+                for chan in marked_channels:
+                    output_array = output_array + numpy.array(self._spec_data.channel_graph(chan))
+                channel = output_array / len(marked_channels)
+
+                # plot averaged graph
+                self.graph_2.plot(numpy.arange(len(channel)), channel, pen = self.green_pen, skipFiniteCheck = True)
+            except Exception as e:
+                print(e)
+
         else:
             if(self.checkBox_savgol_enable.isChecked()):
                 pass
@@ -97,15 +121,17 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             except ZeroDivisionError as e:
                 print(e)
             if(self.checkbox_auto_scale.isChecked()):
-                channel = self._spec_data.channel_graph(self.channel_slider.value())
-                max_h = max(channel)
-                min_h = min(channel)
-                padding_factor = self.slider_channel_zoom.value() / 100
-                pad = math.floor((max_h - min_h) * padding_factor)
-                self.graph_2.setRange(
-                    xRange = (0, self._spec_data.max_captures),
-                    yRange = (max_h + pad, min_h - pad)
-                )
+                try:
+                    max_h = max(channel)
+                    min_h = min(channel)
+                    padding_factor = self.slider_channel_zoom.value() / 100
+                    pad = math.floor((max_h - min_h) * padding_factor)
+                    self.graph_2.setRange(
+                        xRange = (0, self._spec_data.max_captures),
+                        yRange = (max_h + pad, min_h - pad)
+                    )
+                except IndexError as e:      # the internal data is still building up, so we can safely pass this
+                    print(e)
 
 
     def serial_connect(self):
@@ -165,6 +191,16 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             for j in range(len(data[i])):
                 sheet.write(i, j, data[i][j])
         xls.save(default_filename)
+
+    def mca_mark_channel(self):
+        marked_channels = [int(self.list_mca.item(x).text()) for x in range(self.list_mca.count())]
+        new_channel = self.channel_slider.value()
+        if new_channel not in marked_channels:
+            self.list_mca.addItem(str(new_channel))
+
+    def mca_clear_channel(self):
+        if(self.list_mca.count() > 1):
+            self.list_mca.takeItem(self.list_mca.currentRow())
 
 
 

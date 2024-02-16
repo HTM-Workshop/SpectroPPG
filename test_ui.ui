@@ -605,6 +605,16 @@
            <string>60</string>
           </property>
          </item>
+         <item>
+          <property name="text">
+           <string>45</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>80</string>
+          </property>
+         </item>
         </widget>
        </item>
        <item>
