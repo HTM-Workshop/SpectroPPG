@@ -1,6 +1,27 @@
+#!/usr/bin/python3
+#
+#            SpectroPPG
+#   Written by Kevin Williams - 2024
+#
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 2 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software
+#  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+#  MA 02110-1301, USA.
+
 import csv
 import sys
 import time
+import statistics as stat
 import math
 import xlwt
 import numpy
@@ -110,6 +131,11 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
                 try:
                     channel = self._spec_data.channel_graph(self.channel_slider.value())
                     self.graph_2.plot(numpy.arange(len(channel)), channel, pen = self.green_pen, skipFiniteCheck = True)
+                    if(self.checkbox_show_average.isChecked()):
+                        _avg = stat.mean(channel)
+                        self.lcd_channel_average.display(_avg)
+                        avg_track_line = pg.InfiniteLine(pos = _avg, pen = self.red_pen, angle = 0, movable = False)
+                        self.graph_2.addItem(avg_track_line)
                 except IndexError as e:      # the internal data is still building up, so we can safely pass this
                     print(e)
         
